@@ -20,7 +20,7 @@ classifiers = [
 dependencies = []  # standard library only; the portal CLIs need Bun
 
 [project.optional-dependencies]
-dev = ["ruff==0.15.20", "mypy==2.4.1", "coverage==7.13.0"]
+dev = ["ruff==0.15.20", "mypy==2.4.1", "coverage==7.16.2"]
 
 [project.scripts]
 job-alerts = "job_alerts:main"

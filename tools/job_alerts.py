@@ -112,6 +112,7 @@ from alerting.state import (  # noqa: E402,F401  re-exported for callers and tes
     CORPUS_FIELDS,
     LEGAL_SUFFIXES,
     company_core,
+    deep_merge,
     load_alerts,
     load_config,
     load_seen,
@@ -262,7 +263,7 @@ def run(args, env) -> tuple[int, dict]:
             log(errors[-1])
             summary["channels"] = {"email": "skipped", "whatsapp": "skipped"}
             return 2, summary
-        text, html = email_bodies(alerts, now)
+        text, html = email_bodies(alerts, now, config.get("home_name") or "Lima")
         wa = whatsapp_messages(
             alerts,
             int(config.get("whatsapp_top", 5)),

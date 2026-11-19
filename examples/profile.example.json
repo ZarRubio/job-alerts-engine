@@ -1,0 +1,30 @@
+{
+  "_comment": "Example profile for a different candidate: a Java backend developer in Bogotá. Copy it to job_scraper/profile.json (or point JOB_ALERTS_PROFILE at it) and edit. Keys mirror alert_config.json and are deep-merged over it; lists replace, objects merge.",
+  "home_name": "Bogotá",
+  "timezone_offset_hours": -5,
+  "queries": {
+    "backend": ["java developer", "desarrollador java", "spring boot", "backend developer"],
+    "cloud": ["aws developer", "microservices"]
+  },
+  "scoring": {
+    "years": {"threshold": 6, "penalty": 20, "per_extra_year": 5, "max_penalty": 35},
+    "stack": {
+      "have": {
+        "Java": "\\bjava\\b", "Spring Boot": "spring ?boot", "SQL": "\\bsql\\b", "PostgreSQL": "postgres",
+        "Docker": "\\bdocker\\b", "Kubernetes": "kubernetes|\\bk8s\\b", "AWS": "\\baws\\b",
+        "Kafka": "kafka", "Microservicios": "microservic", "APIs REST": "\\brest(ful)?\\b|api rest",
+        "Git": "\\bgit\\b|github|gitlab", "CI/CD": "ci ?/ ?cd|jenkins|github actions", "JUnit": "junit|mockito"
+      },
+      "partial": {"Python": "\\bpython\\b", "React": "\\breact\\b", "Terraform": "terraform", "Redis": "\\bredis\\b"},
+      "missing": {"Go": "\\bgolang\\b", "Rust": "\\brust\\b", "iOS/Swift": "\\bswift\\b|\\bios\\b", "SAP/ABAP": "\\bsap\\b|\\babap\\b"}
+    },
+    "language": {"advanced_english_flag": "⚠ inglés avanzado (tienes B1)"},
+    "location": {
+      "home_name": "Bogotá",
+      "home_district_patterns": ["chapinero", "usaqu[eé]n", "suba", "teusaquillo", "fontib[oó]n", "kennedy", "engativ[aá]"],
+      "other_city_patterns": ["medell[ií]n", "\\bcali\\b", "barranquilla", "cartagena", "bucaramanga", "pereira", "manizales"],
+      "home_patterns": ["colombia", "bogot[aá]", "\\blatam\\b", "latin america", "\\bamericas\\b", "worldwide", "anywhere"],
+      "foreign_patterns": ["per[uú]", "\\blima\\b", "m[eé]xico", "chile", "argentina", "brazil", "brasil", "united states", "\\busa\\b", "spain", "espa[nñ]a", "europe"]
+    }
+  }
+}

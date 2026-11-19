@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "job-alerts-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "Searches job boards, scores postings with an explainable, evaluated model and emails the best fits."
 readme = "README.md"
 requires-python = ">=3.10"

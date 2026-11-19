@@ -244,6 +244,31 @@ class ScorerTests(unittest.TestCase):
         self.assertIn("solo título (sin descripción)", self.score("AI Engineer")["flags"])
 
 
+class ProfileTests(unittest.TestCase):
+    """The candidate profile is a separate file merged over the generic rules."""
+
+    def test_profile_is_merged_over_the_rules(self):
+        config = job_alerts.load_config(CONFIG)
+        self.assertIn("ai_engineering", config["queries"])
+        self.assertIn("Python", config["scoring"]["stack"]["have"])
+        self.assertIn("positive", config["scoring"])  # rules survive the merge
+
+    def test_example_profile_retargets_city_and_stack(self):
+        example = ROOT / "examples" / "profile.example.json"
+        config = job_alerts.load_config(CONFIG, profile=example)
+        scorer = job_alerts.Scorer(config["scoring"], config["portals"])
+        bogota = scorer.score(
+            job("Java Developer", location="Bogotá, Colombia", description="Java, Spring Boot. Híbrido.")
+        )
+        self.assertFalse(bogota["excluded"], bogota)
+        lima = scorer.score(job("Java Developer", location="Lima, Peru", description="Java, Spring Boot. Híbrido."))
+        self.assertTrue(lima["excluded"], lima)
+
+    def test_deep_merge_replaces_lists_and_merges_objects(self):
+        merged = job_alerts.deep_merge({"a": {"x": 1, "y": [1]}, "b": 1}, {"a": {"y": [2]}, "c": 3})
+        self.assertEqual(merged, {"a": {"x": 1, "y": [2]}, "b": 1, "c": 3})
+
+
 class RemotePortalScoringTests(unittest.TestCase):
     """Remote-only boards: postings tied to another country or timezone must not alert."""
 
@@ -397,7 +422,8 @@ class RunTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.tmp = Path(tmp.name)
         self.state = self.tmp / "alerts_state.json"
-        config = json.loads(CONFIG.read_text(encoding="utf-8"))
+        config = job_alerts.load_config(CONFIG)  # rules with the profile merged in
+        config.pop("profile_file", None)
         config["queries"] = {"ai_engineering": ["AI engineer"]}
         # The run tests drive two mocked portals: one with detail calls, one that fails.
         config["portals"] = {

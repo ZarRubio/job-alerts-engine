@@ -73,9 +73,9 @@ def stack_line(job: dict) -> str:
     return " · ".join(parts)
 
 
-def email_bodies(alerts: list[dict], now: datetime) -> tuple[str, str]:
+def email_bodies(alerts: list[dict], now: datetime, home: str = "Lima") -> tuple[str, str]:
     lines = [
-        f"Ofertas nuevas que encajan contigo ({now.strftime('%d/%m/%Y %H:%M')}, hora de Lima):",
+        f"Ofertas nuevas que encajan contigo ({now.strftime('%d/%m/%Y %H:%M')}, hora de {home}):",
         "Stack: ✓ lo dominas · ~ lo conoces o estás aprendiendo · ✗ no lo tienes",
         "",
     ]
@@ -112,7 +112,7 @@ def email_bodies(alerts: list[dict], now: datetime) -> tuple[str, str]:
     lines.append("Generado automáticamente por tools/job_alerts.py.")
     html = (
         "<html><body style='font-family:Arial,sans-serif'>"
-        f"<p>Ofertas nuevas que encajan contigo ({now.strftime('%d/%m/%Y %H:%M')}, hora de Lima):</p>"
+        f"<p>Ofertas nuevas que encajan contigo ({now.strftime('%d/%m/%Y %H:%M')}, hora de {home}):</p>"
         "<p style='color:#666;font-size:12px'>"
         "Stack: ✓ lo dominas · ~ lo conoces o estás aprendiendo · ✗ no lo tienes</p>"
         "<table border='1' cellpadding='6' cellspacing='0' style='border-collapse:collapse;font-size:13px'>"

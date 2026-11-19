@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -10,12 +11,40 @@ from alerting.common import log
 from rank_state import load_state, tracker_pairs
 
 
-def load_config(path: Path) -> dict:
+def deep_merge(base: dict, overlay: dict) -> dict:
+    """Overlay wins; nested objects merge key by key, lists and scalars replace."""
+    merged = dict(base)
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _read_json(path: Path, what: str) -> dict:
     try:
-        config = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read config {path}: {exc}") from exc
-    if not isinstance(config, dict) or not isinstance(config.get("queries"), dict):
+        raise ValueError(f"cannot read {what} {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"{what} {path} must be a JSON object")
+    return data
+
+
+def load_config(path: Path, profile: Path | None = None) -> dict:
+    """Generic rules (alert_config.json) with the candidate profile merged over them.
+
+    The profile is `profile` if given, else $JOB_ALERTS_PROFILE, else the config's
+    `profile_file` (resolved next to the config). A config without one is used as is.
+    """
+    config = _read_json(path, "config")
+    explicit = profile or os.environ.get("JOB_ALERTS_PROFILE")
+    if explicit:
+        config = deep_merge(config, _read_json(Path(explicit), "profile"))
+    elif config.get("profile_file"):
+        config = deep_merge(config, _read_json(Path(path).parent / config["profile_file"], "profile"))
+    if not isinstance(config.get("queries"), dict):
         raise ValueError(f"config {path} needs a 'queries' object")
     if not isinstance(config.get("portals"), dict) or not isinstance(config.get("scoring"), dict):
         raise ValueError(f"config {path} needs 'portals' and 'scoring' objects")

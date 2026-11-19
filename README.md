@@ -42,18 +42,7 @@ The score is deterministic (no LLM, no API cost) and every point is explained in
 
 ### Example alert (synthetic postings)
 
-```text
-[ALTA 100] Software Engineer - Agentic AI — Agents Lab (Remote · LATAM)
-  https://example.com/jobs/s12  (vía Remotive)
-  De qué trata: you will ship LLM agents with tool calling, evaluation sets and Python. Claude Code in daily use. Remote, LATAM time zones.
-  Pide: ✓ Python, LLM, Agentes de IA · híbrido/remoto
-  Motivos: rol de desarrollo; menciona Claude Code; IA/LLM (tu meta de carrera); stack 100% cubierto; híbrido/remoto (prioridad)
-
-[MEDIA 74] Analista de Datos e IA — Banco Ejemplo (Lima, Peru)
-  De qué trata: modelos de datos en SQL y Power BI, automatización con Python y prototipos de IA generativa. Modalidad híbrida.
-  Pide: ✓ Python, SQL, Power BI · híbrido/remoto
-  Motivos: ...; BI con Python/automatización/IA (máx. medio)
-```
+![Example alert email: a table with fit, score, title, company, what the job is about, the stack it asks for (have / partial / missing), source, location, warnings and the reasons behind the score](docs/email-example.png)
 
 The alert text is in Spanish because the candidate searches in Peru; the code, config keys and docs are in English.
 
@@ -64,9 +53,12 @@ The alert text is in Spanish because the candidate searches in Peru; the code, c
 | `tools/job_alerts.py` | CLI: `--dry-run`, `--no-notify`, `--test-notify`, `--collect` |
 | `tools/alerting/` | `search.py` (portal CLIs, dedupe, details), `scoring.py` (the model), `notify.py` (email/WhatsApp, secret redaction), `state.py`, `common.py` |
 | `tools/eval_alerts.py` | Precision, recall, F1 and the misclassified postings for a labelled corpus |
-| `job_scraper/alert_config.json` | Queries, portals and every scoring rule. Tuning is a config change, not a code change |
+| `job_scraper/alert_config.json` | Generic rules: portals, role and seniority rules, gates, thresholds |
+| `job_scraper/profile.json` | The candidate: search queries, stack (have / partial / missing), home city and districts, years, English level. Merged over the rules |
 | `portals/*/cli` | TypeScript/Bun CLIs for Get on Board, Remotive and Himalayas: `search`/`detail`, JSON output, backoff on 429/5xx, zero runtime dependencies, network-free tests |
+| `examples/profile.example.json` | A second profile (Java backend developer in Bogotá) showing how to retarget the engine |
 | `examples/sample_corpus.jsonl` | 12 synthetic labelled postings to try the evaluator |
+| `docs/email-example.png` | The alert email above, rendered from the synthetic sample |
 | `.github/workflows/` | `ci.yml` (tests, ruff, mypy, portal tests) and `job-alerts.yml` (the scheduled run) |
 
 ## Run it
@@ -86,6 +78,16 @@ Config, state and portals are read from the repository checkout. To keep your ow
 
 To get emails, set `ALERT_SMTP_USER`, `ALERT_SMTP_APP_PASSWORD` (a Gmail app password) and `ALERT_EMAIL_TO`, then run without `--dry-run`. In GitHub Actions they are repository secrets; the workflow keeps the "already alerted" state on an orphan `alerts-state` branch so nothing personal lands on `main`.
 
+### Adapt it to your profile
+
+Everything that depends on who is searching lives in `job_scraper/profile.json`; `alert_config.json` holds rules that work for anyone. To retarget the engine:
+
+1. Copy `examples/profile.example.json` over `job_scraper/profile.json` (or set `JOB_ALERTS_PROFILE=/path/to/your-profile.json`).
+2. Edit `queries`, the `stack` tiers (what you have, know partially or lack), `location` (home city, its districts, other cities, which countries count as home) and the `years` threshold.
+3. Run `job-alerts --dry-run` and check the reasons in the output; label a few postings and run `job-alerts-eval` to see whether the change helped.
+
+The profile is deep-merged over the rules: objects merge key by key, lists replace. A test scores the same posting under both profiles to prove a Bogotá job passes for the Bogotá profile and is excluded for the Lima one.
+
 ### Measuring a change
 
 ```bash
@@ -100,13 +102,13 @@ python tools/eval_alerts.py --errors      # before and after editing alert_confi
 
 - **Deterministic first, not an LLM.** The filter runs twice a day over a few hundred postings. Rules cost nothing, run in seconds, never hallucinate a requirement and explain every point they give. An LLM re-ranking of the top results is a possible next layer, and it would have to beat the same labelled corpus to earn its cost.
 - **Measured, not eyeballed.** Every tuning change is judged by precision, recall and F1 on hand-labelled real postings, and CI enforces minimum values so a regression cannot slip in unnoticed.
-- **Tuning is configuration.** Every pattern, weight and threshold lives in `alert_config.json`; the code only interprets it. Adapting the engine to another profile means editing JSON, not Python.
+- **Tuning is configuration, and the person is separate from the rules.** Every pattern, weight and threshold lives in JSON; the code only interprets it. The candidate-specific part is its own file, so adapting the engine to someone else means editing `profile.json`, not Python.
 - **Explainability over a single number.** The email shows why a posting scored what it did and which parts of its stack are covered, so the reader can disagree with the model in seconds.
 - **Secrets and personal state stay out of git.** Credentials come from environment variables and are redacted from every log and message; the alert history lives on a separate orphan branch.
 
 ## Quality
 
-- 51 Python tests (scoring cases, dedupe, notifications with mocked SMTP/HTTP and secret redaction, CLI runs with mocked portals, the evaluator) plus Bun tests for each portal CLI. Coverage of the engine is ~87%, with an 85% gate in CI.
+- 54 Python tests (scoring cases, dedupe, notifications with mocked SMTP/HTTP and secret redaction, CLI runs with mocked portals, the evaluator, profile merging) plus Bun tests for each portal CLI. Coverage of the engine is ~87%, with an 85% gate in CI.
 - `ruff` (lint + format) and `mypy` in CI; actions pinned to commit SHAs; checkout without persisted credentials; Dependabot for Actions, npm and pip.
 - Versioned releases with a [changelog](CHANGELOG.md).
 

@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-19
+
+### Added
+- `job_scraper/profile.json`: the candidate-specific part of the configuration
+  (queries, stack tiers, home city and districts, years threshold, English flag),
+  deep-merged over the generic rules. `JOB_ALERTS_PROFILE` selects another file.
+- `examples/profile.example.json`: a second profile (Java backend, Bogotá) and a
+  test proving the same posting is scored differently under each profile.
+- Rendered example alert email in `docs/` and the README.
+
+### Changed
+- Location and email texts use the profile's home city instead of a hard-coded one.
+- Scoring results on the labelled corpus are unchanged (F1 0.90).
+
 ## [0.1.0] - 2026-11-19
 
 First public release.
@@ -25,4 +39,5 @@ First public release.
 - CI: tests on Python 3.10/3.12/3.13, coverage gate (85%), ruff, mypy and the
   portal CLI tests; Dependabot for Actions, npm and pip.
 
+[0.2.0]: https://github.com/ZarRubio/job-alerts-engine/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ZarRubio/job-alerts-engine/releases/tag/v0.1.0

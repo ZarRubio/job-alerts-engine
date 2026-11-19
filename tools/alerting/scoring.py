@@ -54,7 +54,8 @@ class Scorer:
         self.hybrid = c(loc.get("hybrid_remote_patterns", []))
         self.remote = c(loc.get("remote_patterns", [])) or self.hybrid
         self.home = c(loc.get("home_patterns", []))
-        self.lima_districts = c(loc.get("lima_district_patterns", []))
+        self.home_districts = c(loc.get("home_district_patterns") or loc.get("lima_district_patterns") or [])
+        self.home_name = loc.get("home_name") or "home"
         self.foreign = c(loc.get("foreign_patterns", []))
         self.foreign_title = c(loc.get("foreign_title_patterns", []))
         blocked = rules.get("blocked_companies") or {}
@@ -70,6 +71,7 @@ class Scorer:
         self.restricted = c(loc.get("restricted_patterns", []))
         lang = rules.get("language") or {}
         self.english = c(lang.get("advanced_english_patterns", []))
+        self.english_flag = lang.get("advanced_english_flag") or "⚠ inglés avanzado"
         markers = "|".join(lang.get("required_markers", [])) or "$^"
         self.languages = [
             (
@@ -196,10 +198,12 @@ class Scorer:
         elif (
             (city := self._hit(self.other_city, f"{location}\n{title}"))
             and not self._hit(self.remote, everything)
-            # "San Borja, Huánuco": a Lima district beats a mislabelled region.
-            and not self._hit(self.lima_districts, location)
+            # "San Borja, Huánuco": a home-city district beats a mislabelled region.
+            and not self._hit(self.home_districts, location)
         ):
-            excluded = f"fuera de Lima ({location if self._hit(self.other_city, location) else city.group(0)})"
+            excluded = (
+                f"fuera de {self.home_name} ({location if self._hit(self.other_city, location) else city.group(0)})"
+            )
         elif self.blocked and self._hit(self.blocked, job.get("company") or ""):
             excluded = self.blocked_reason
         elif self._hit(self.foreign_title, title) and not (
@@ -223,7 +227,7 @@ class Scorer:
             score += self.modality["presencial"]
             penalties.append(self.modality.get("presencial_reason", "presencial"))
         if self._hit(self.english, everything):
-            flags.append("⚠ inglés avanzado (tienes B2)")
+            flags.append(self.english_flag)
         for name, rx in self.languages:
             if rx.search(everything):
                 excluded = excluded or f"requiere otro idioma ({name})"

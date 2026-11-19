@@ -1,0 +1,172 @@
+# Job alerts: runs tools/job_alerts.py and emails the new high/medium fits.
+# Manual by default. To run it on a schedule, uncomment `schedule` below and add
+# the ALERT_SMTP_USER, ALERT_SMTP_APP_PASSWORD and ALERT_EMAIL_TO secrets.
+#
+# Why GitHub Actions: the portal APIs (Get on Board, Remotive, Himalayas) and
+# Gmail SMTP are reachable from a GitHub runner, while some cloud sandboxes
+# answer them with a proxy 403 and block SMTP.
+#
+# State: job_scraper/alerts_state.json (what was already alerted) lives on the
+# orphan branch `alerts-state`, never on master. Each run restores it from that
+# branch, runs, and force-pushes the updated file back as a single commit.
+#
+# Security posture, same as ci.yml: actions pinned to commit SHAs; checkout
+# drops its credentials (persist-credentials: false) so the CLI code that runs
+# later cannot read the token from .git/config; the token is handed only to the
+# two git steps that need it, through env, and the three SMTP secrets only to
+# the step that runs the alerts. Nothing from the event payload is expanded
+# inside a run script - the dispatch input reaches the shell through env.
+
+name: Job alerts
+
+on:
+  # schedule:
+  #   - cron: "0 18 * * 1-6"   # 13:00 Lima (UTC-5), Monday-Saturday
+  #   - cron: "0 3 * * 0,2-6"  # 22:00 Lima the previous day (03:00 UTC), Monday-Saturday
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normal = search and email; no-notify = mark today's hits as seen without emailing (first run); test-notify = send one test email"
+        type: choice
+        options:
+          - normal
+          - no-notify
+          - test-notify
+        default: normal
+
+permissions:
+  contents: write
+
+concurrency:
+  group: job-alerts
+  cancel-in-progress: false
+
+jobs:
+  alerts:
+    name: Search, score and notify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MODE: ${{ github.event.inputs.mode || 'normal' }}
+      STATE_FILE: job_scraper/alerts_state.json
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+
+      - name: Install portal CLIs
+        run: for d in portals/*/cli; do (cd "$d" && bun install --frozen-lockfile || bun install); done
+
+      - name: Restore alerts state from the alerts-state branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          if git -c "http.https://github.com/.extraheader=$auth" fetch --quiet --depth=1 origin alerts-state 2>/dev/null; then
+            if git show FETCH_HEAD:alerts_state.json > "$STATE_FILE" 2>/dev/null; then
+              echo "Restored $(python -c "import json,sys; print(len(json.load(open(sys.argv[1], encoding='utf-8'))['alerts']))" "$STATE_FILE") alerted postings from alerts-state."
+            else
+              rm -f "$STATE_FILE"
+              echo "alerts-state has no alerts_state.json; starting empty."
+            fi
+          else
+            echo "No alerts-state branch yet; this run starts with an empty state."
+          fi
+          if [ -f "$STATE_FILE" ]; then cp "$STATE_FILE" "$RUNNER_TEMP/state_before.json"; fi
+
+      - name: Run job alerts
+        id: run
+        env:
+          ALERT_SMTP_USER: ${{ secrets.ALERT_SMTP_USER }}
+          ALERT_SMTP_APP_PASSWORD: ${{ secrets.ALERT_SMTP_APP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: |
+          case "$MODE" in
+            normal) args=() ;;
+            no-notify) args=(--no-notify) ;;
+            test-notify) args=(--test-notify) ;;
+            *) echo "::error::unknown mode '$MODE'"; exit 1 ;;
+          esac
+          set +e
+          python tools/job_alerts.py "${args[@]}" > "$RUNNER_TEMP/summary.json"
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "job_alerts.py exited $code"
+          # The summary carries job titles and links, never a secret value.
+          python - "$RUNNER_TEMP/summary.json" <<'PY'
+          import json, sys
+          try:
+              s = json.load(open(sys.argv[1], encoding="utf-8"))
+          except Exception as exc:
+              print(f"::warning::no JSON summary ({exc})")
+              sys.exit(0)
+          searched = s.get("searched") or {}
+          for portal, st in (searched.get("by_portal") or {}).items():
+              fits = (s.get("counts_by_portal") or {}).get(portal, {})
+              print(f"{portal}: {st.get('calls')} calls, {st.get('failed')} failed, {st.get('raw_hits')} hits | {fits}")
+          print("counts:", s.get("counts"), "| channels:", s.get("channels"))
+          for hit in s.get("hits") or []:
+              print(f"[{hit['fit']} {hit['score']}] {hit['title']} - {hit['company']} ({hit.get('source')}) {hit['url']}")
+          for err in s.get("errors") or []:
+              print(f"::warning::{err}")
+          if s.get("error"):
+              print(f"::error::{s['error']}")
+          PY
+
+      - name: Save alerts state to the alerts-state branch
+        if: env.MODE != 'test-notify' && steps.run.outputs.code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [ ! -f "$STATE_FILE" ]; then
+            echo "No state written this run (nothing new to record)."
+            exit 0
+          fi
+          if [ -f "$RUNNER_TEMP/state_before.json" ] && cmp -s "$STATE_FILE" "$RUNNER_TEMP/state_before.json"; then
+            echo "State unchanged; nothing to push."
+            exit 0
+          fi
+          work="$RUNNER_TEMP/alerts-state"
+          mkdir -p "$work"
+          cp "$STATE_FILE" "$work/alerts_state.json"
+          cd "$work"
+          git init --quiet --initial-branch=alerts-state
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add alerts_state.json
+          git commit --quiet -m "Update job alerts state (run $RUN_ID)"
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c "http.https://github.com/.extraheader=$auth" push --quiet --force "https://github.com/$REPO.git" alerts-state
+          echo "alerts-state updated."
+
+      - name: Fail visibly on a missed notification
+        if: always() && steps.run.outcome == 'success'
+        env:
+          CODE: ${{ steps.run.outputs.code }}
+        run: |
+          # Exit 2: postings were found but no channel is configured (the three
+          # secrets are missing) - they stay unalerted for the next run. Exit 1:
+          # bun missing, unreadable config, or --test-notify reached no channel.
+          if [ "$CODE" != "0" ]; then
+            echo "::error::job_alerts.py exited $CODE - see the 'Run job alerts' log. Exit 2 means new postings but no email configured: add the ALERT_SMTP_USER, ALERT_SMTP_APP_PASSWORD and ALERT_EMAIL_TO secrets."
+            exit 1
+          fi
+          # A configured channel that failed (e.g. a revoked Gmail app password)
+          # still records the postings, so make the failure loud here.
+          python - "$RUNNER_TEMP/summary.json" <<'PY'
+          import json, sys
+          s = json.load(open(sys.argv[1], encoding="utf-8"))
+          failed = [name for name, status in (s.get("channels") or {}).items() if status == "failed"]
+          if failed:
+              print(f"::error::notification channel(s) failed: {', '.join(failed)} - check the secrets / app password")
+              sys.exit(1)
+          PY

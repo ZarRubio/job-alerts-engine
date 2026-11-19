@@ -1,0 +1,10 @@
+# Lint/format settings for the job-alert code (tools/job_alerts.py, tools/alerting/,
+# tools/eval_alerts.py and their tests). CI runs ruff on those paths only.
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[lint.isort]
+known-first-party = ["alerting", "job_alerts", "eval_alerts", "rank_state", "scrape_state", "job_key"]

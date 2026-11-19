@@ -1,0 +1,439 @@
+{
+  "_comment": "Configuration for tools/job_alerts.py: search queries, portals and scoring rules. No secrets here: email credentials come from environment variables. The scoring rules are tuned for one candidate profile (full stack + applied AI, Lima, Peru); adapt `scoring.stack`, the role rules and `location` to your own.",
+  "timezone_offset_hours": -5,
+  "prune_days": 60,
+  "max_details": 15,
+  "whatsapp_top": 5,
+  "whatsapp_max_encoded_chars": 1800,
+  "whatsapp_delay_seconds": 4,
+  "queries": {
+    "full_stack": ["desarrollador full stack", "full stack developer", "next.js", "react"],
+    "ai_engineering": ["AI engineer", "LLM engineer", "GenAI engineer", "machine learning engineer", "ingeniero de IA", "desarrollador IA"],
+    "analista": ["analista desarrollador", "analista de sistemas", "analista programador", "analista de desarrollo de software", "desarrollador semi senior", "analista de inteligencia artificial", "analista de automatización"],
+    "erp": ["odoo"],
+    "datos": ["analista de datos power bi", "python developer"]
+  },
+  "portals": {
+    "getonbrd-search": {
+      "_comment": "Get on Board (LatAm). Una sola llamada: todo el feed de Perú (empleos en Perú + remotos abiertos a Perú) en categorías técnicas; el puntaje hace el resto.",
+      "enabled": true,
+      "label": "Get on Board",
+      "single_call": true,
+      "search_args": {
+        "--country": "pe",
+        "--category": "programming,machine learning,data,sysadmin,mobile",
+        "--jobage": "3",
+        "--max-pages": "3",
+        "--limit": "100"
+      },
+      "delay_seconds": 1,
+      "detail": false
+    },
+    "remotive-search": {
+      "_comment": "Remotive (remoto). Sus términos piden pocas llamadas al día (máx. 4): una sola llamada por corrida a la categoría completa. Publica con 24 h de retraso, por eso jobage 4. location_allow descarta remotos solo para EE. UU./Europa.",
+      "enabled": true,
+      "label": "Remotive",
+      "single_call": true,
+      "search_args": {
+        "--category": "software-development",
+        "--jobage": "4",
+        "--limit": "100"
+      },
+      "location_allow": ["worldwide", "anywhere", "global", "latam", "latin america", "south america", "\\bamericas\\b", "per[uú]", "\\blima\\b"],
+      "delay_seconds": 0,
+      "detail": false
+    },
+    "himalayas-search": {
+      "_comment": "Himalayas (remoto). --country Peru devuelve solo empleos que aceptan residentes en Perú (más los worldwide). Lista corta de consultas propia para cuidar el límite público.",
+      "enabled": true,
+      "label": "Himalayas",
+      "queries": ["full stack", "react", "next.js", "node.js", "python", "AI engineer", "LLM", "machine learning engineer", "odoo", "power bi"],
+      "search_args": {
+        "--country": "Peru",
+        "--seniority": "Entry-level,Mid-level",
+        "--jobage": "3",
+        "--limit": "20"
+      },
+      "delay_seconds": 2,
+      "detail": false
+    }
+  },
+  "scoring": {
+    "base": 25,
+    "high_threshold": 75,
+    "medium_threshold": 45,
+    "non_tech_score_cap": 20,
+    "positive": [
+      {
+        "name": "ia",
+        "group": "role",
+        "reason": "IA/LLM (tu meta de carrera)",
+        "title": 30,
+        "description": 10,
+        "patterns": ["\\b(ia|ai)\\b", "inteligencia artificial", "artificial intelligence", "\\bllms?\\b", "\\bgenai\\b", "generativ[ao]", "generative", "agentes? (de ia|inteligentes|aut[oó]nomos)", "\\bai agents?\\b", "agentic", "\\bclaude\\b", "chatgpt", "\\bgemini\\b", "\\brag\\b", "machine learning", "\\bml\\b", "openai", "langchain", "prompt"]
+      },
+      {
+        "name": "automatizacion",
+        "group": "role",
+        "reason": "automatización",
+        "title": 12,
+        "description": 6,
+        "patterns": ["automatizaci[oó]n", "automation", "\\brpa\\b", "n8n"]
+      },
+      {
+        "name": "fullstack",
+        "group": "role",
+        "reason": "full stack / Next.js / React / TypeScript / Node",
+        "title": 22,
+        "description": 0,
+        "patterns": ["full ?-?stack", "next\\.?js", "\\breact\\b(?! native)", "typescript", "node\\.?js", "\\bnode\\b"]
+      },
+      {
+        "name": "python",
+        "group": "role",
+        "reason": "Python / FastAPI",
+        "title": 12,
+        "description": 0,
+        "patterns": ["\\bpython\\b", "fastapi"]
+      },
+      {
+        "name": "java",
+        "group": "role",
+        "reason": "Java / Spring Boot",
+        "title": 10,
+        "description": 0,
+        "patterns": ["\\bjava\\b", "spring ?boot"]
+      },
+      {
+        "name": "sql",
+        "group": "role",
+        "reason": "SQL",
+        "title": 6,
+        "description": 0,
+        "patterns": ["\\bsql\\b", "postgres", "mysql"]
+      },
+      {
+        "name": "powerbi",
+        "group": "role",
+        "reason": "Power BI",
+        "title": 10,
+        "description": 0,
+        "patterns": ["power ?bi"]
+      },
+      {
+        "name": "analista_dev",
+        "group": "role",
+        "reason": "analista desarrollador / de sistemas / de TI",
+        "title": 20,
+        "description": 4,
+        "patterns": ["analista (desarrollador|programador|de sistemas|de software|de desarrollo|de aplicaciones|de ti\\b|funcional|de datos|de automatizaci[oó]n|de procesos|de inteligencia artificial|de ia\\b|bi\\b|de business intelligence|de soluciones de datos|de data scientist|de informaci[oó]n bi)", "systems analyst", "software analyst", "business analyst", "\\bbi analyst\\b"]
+      },
+      {
+        "name": "semi_senior",
+        "group": "level",
+        "reason": "nivel semi senior (objetivo realista)",
+        "title": 10,
+        "description": 0,
+        "patterns": ["semi ?-?senior", "\\bssr\\b", "\\bmid[- ]?level\\b"]
+      },
+      {
+        "name": "erp",
+        "group": "role",
+        "reason": "Odoo / ERP",
+        "title": 15,
+        "description": 8,
+        "patterns": ["\\bodoo\\b", "\\berp\\b"]
+      },
+      {
+        "name": "dev",
+        "reason": "rol de desarrollo",
+        "title": 10,
+        "description": 0,
+        "patterns": ["desarrollador", "developer", "programador", "ingenier[oa] de software", "software engineer", "\\bengineer\\b", "ingenier[oa]"]
+      },
+      {
+        "name": "nivel",
+        "group": "level",
+        "reason": "nivel junior",
+        "title": 6,
+        "description": 0,
+        "patterns": ["\\bjunior\\b", "\\bjr\\b", "trainee"]
+      },
+      {
+        "name": "claude_code",
+        "reason": "menciona Claude Code",
+        "title": 25,
+        "description": 15,
+        "patterns": ["claude[ -]code"]
+      }
+    ],
+    "negative": [
+      {
+        "name": "seniority",
+        "reason": "seniority alta en el título",
+        "title": -40,
+        "description": 0,
+        "patterns": ["(?<!semi)(?<!semi )(?<!semi-)\\bsenior\\b", "\\bsr\\.?\\b", "\\blead\\b", "\\bl[ií]der\\b", "\\bhead\\b", "\\bprincipal\\b", "\\bstaff\\b", "\\bdirector", "\\barquitect", "\\barchitect", "gerente\\b", "\\bmanager\\b", "\\bjefe\\b", "\\bcoordinador"]
+      },
+      {
+        "name": "dotnet",
+        "reason": ".NET/C#",
+        "title": -5,
+        "description": 0,
+        "patterns": ["\\.net\\b", "c#", "asp\\.net"]
+      },
+      {
+        "name": "legacy_ms",
+        "reason": "stack legado Microsoft (Classic ASP/VBScript/WebForms/VB6)",
+        "title": -30,
+        "description": -15,
+        "patterns": ["vbscript", "classic asp", "\\basp\\b(?!\\s?\\.net)", "web ?forms", "\\bvb6\\b", "visual basic 6"]
+      },
+      {
+        "name": "aws_serverless",
+        "reason": "AWS serverless exigido (Lambda/Step Functions)",
+        "title": -10,
+        "description": 0,
+        "patterns": ["step functions", "aws lambda", "dynamodb"]
+      },
+      {
+        "name": "mobile",
+        "reason": "móvil nativo (iOS/Android)",
+        "title": -15,
+        "description": 0,
+        "patterns": ["\\bios\\b", "\\bandroid\\b", "\\bswift\\b"]
+      },
+      {
+        "name": "off_stack_title",
+        "reason": "stack ajeno en el título (Go/Rust/COBOL/Oracle/OutSystems/React Native)",
+        "title": -30,
+        "description": 0,
+        "patterns": ["\\bgolang\\b", "\\bgo\\s*[&/,]", "[&/,]\\s*go\\b", "\\brust\\b", "\\bscala\\b", "\\bruby\\b", "\\bcobol\\b", "mainframe", "\\boracle\\b", "outsystems", "power ?builder", "react native", "\\blua\\b", "\\bios\\b"]
+      },
+      {
+        "name": "sap",
+        "reason": "SAP técnico",
+        "title": -20,
+        "description": 0,
+        "patterns": ["\\bsap\\b", "\\babap\\b"]
+      },
+      {
+        "name": "kubernetes",
+        "reason": "Kubernetes/infra pesado",
+        "title": -12,
+        "description": 0,
+        "patterns": ["kubernetes", "\\bk8s\\b", "devops", "\\bsre\\b"]
+      },
+      {
+        "name": "no_dev",
+        "reason": "rol no de desarrollo (producto, legal, finanzas, docencia, panel de expertos)",
+        "title": -35,
+        "description": 0,
+        "patterns": ["product owner", "product manager", "\\blegal\\b", "tesorer", "\\bfinanz", "\\bteaching\\b", "\\btutor", "\\binstructor", "\\bdocente\\b", "talent pool", "\\bexperts?\\b", "\\bscrum master\\b", "\\bmarketing\\b", "\\breclut", "\\brecruit", "\\btalent\\b", "\\bgrowth\\b", "\\brepuestos\\b", "mejora operativa", "\\bsales\\b"]
+      },
+      {
+        "name": "soporte",
+        "reason": "soporte / mesa de ayuda",
+        "title": -20,
+        "description": 0,
+        "patterns": ["\\bsoporte\\b", "\\bsupport\\b", "help ?desk", "mesa de ayuda", "service desk"]
+      },
+      {
+        "name": "other_track",
+        "reason": "otra especialidad (seguridad, QA, cloud/infra, customer success, research)",
+        "title": -25,
+        "description": 0,
+        "patterns": ["\\bsecurity\\b", "\\bseguridad\\b", "ciberseguridad", "\\bqa\\b", "calidad de software", "\\btester\\b", "cloud engineer", "customer success", "\\bresearch", "\\binvestigador"]
+      },
+      {
+        "name": "salesforce",
+        "reason": "Salesforce",
+        "title": -20,
+        "description": 0,
+        "patterns": ["salesforce", "apex"]
+      },
+      {
+        "name": "gig_ai_training",
+        "reason": "gig de entrenamiento de IA / panel de expertos",
+        "title": -50,
+        "description": 0,
+        "patterns": ["\\bai trainer", "\\btrainer\\b", "\\b(stem|coding|hardware|research|domain|subject[- ]matter|life sciences)\\b[^,(]{0,30}\\bexpert\\b", "\\bph\\.?d\\b", "\\bmsc\\b", "annotat", "data label", "\\bbachelor\\b"]
+      }
+    ],
+    "angular_only": {
+      "reason": "solo Angular",
+      "title": -10,
+      "description": -4,
+      "pattern": "\\bangular\\b",
+      "unless": "\\b(react|next\\.?js|vue)\\b"
+    },
+    "years": {
+      "threshold": 5,
+      "penalty": 25,
+      "per_extra_year": 5,
+      "max_penalty": 40
+    },
+    "stack": {
+      "_comment": "Cobertura del stack: qué parte de lo que pide el aviso (título + descripción) dominas. have=1, partial=0.5 (declarado, universidad o en aprendizaje), missing=0. Puntos = (cobertura - pivot) * points, acotados a max_bonus/max_penalty; solo con min_terms o más términos detectados. Reemplaza los puntos por tecnología en la descripción.",
+      "min_terms": 3,
+      "pivot": 0.6,
+      "points": 40,
+      "max_bonus": 12,
+      "max_penalty": 15,
+      "have": {
+        "Python": "\\bpython\\b",
+        "FastAPI": "fastapi",
+        "Java": "\\bjava\\b",
+        "Spring Boot": "spring ?boot",
+        "Node.js": "\\bnode(\\.?js)?\\b",
+        "TypeScript": "typescript",
+        "JavaScript": "javascript",
+        "React": "\\breact(\\.?js)?\\b(?! native)",
+        "Next.js": "next\\.?js",
+        "Tailwind": "tailwind",
+        "HTML/CSS": "\\bhtml5?\\b|\\bcss3?\\b",
+        "SQL": "\\bsql\\b(?! server)",
+        "PostgreSQL": "postgres",
+        "MySQL": "mysql",
+        "SQL Server": "sql server|\\bmssql\\b",
+        "Docker": "\\bdocker\\b",
+        "CI/CD": "ci ?/ ?cd|github actions|integraci[oó]n continua",
+        "Git": "\\bgit\\b|github|gitlab",
+        "APIs REST": "\\brest(ful)?\\b|api rest|rest api",
+        "Swagger/OpenAPI": "swagger|openapi",
+        "JWT/OAuth": "\\bjwt\\b|oauth",
+        "Power BI": "power ?bi",
+        "Power Automate": "power automate",
+        "Power Apps": "power apps",
+        "ETL": "\\betl\\b",
+        "LLM": "\\bllms?\\b|large language models?|modelos? de lenguaje",
+        "RAG": "\\brag\\b|retrieval[- ]augmented",
+        "LangGraph": "langgraph",
+        "LangChain": "langchain",
+        "OpenAI": "openai|chatgpt|\\bgpt-?\\d",
+        "Embeddings/vectores": "embedding|pgvector|vector (db|database|store|search)|vectorial",
+        "Agentes de IA": "ai agents?|agentes? (de ia|inteligentes|aut[oó]nomos)|agentic|multi-?agent|multiagente|function calling|tool calling",
+        "Prompt engineering": "prompt",
+        "Fine-tuning": "fine-?tun",
+        "Machine learning": "machine learning|aprendizaje autom[aá]tico|\\bml\\b",
+        "Deep learning": "deep learning|aprendizaje profundo",
+        "PyTorch": "pytorch",
+        "Google Cloud": "\\bgcp\\b|google cloud|cloud run",
+        "GitHub Copilot": "github copilot",
+        "Microsoft Copilot / Power Platform": "microsoft copilot|power platforms?|copilot(?! studio)",
+        "Pruebas automatizadas": "pytest|vitest|playwright|unit tests?|pruebas (unitarias|automatizadas)",
+        "Postman": "postman",
+        "Flutter": "flutter",
+        "Figma": "figma",
+        "Scrum/Agile": "\\bscrum\\b|\\bagile\\b|\\b[aá]gil(es)?\\b|kanban",
+        "Odoo": "\\bodoo\\b",
+        "ERP": "\\berp\\b",
+        "WordPress": "wordpress|woocommerce"
+      },
+      "partial": {
+        "Angular": "\\bangular\\b",
+        "Vue": "\\bvue(\\.?js)?\\b",
+        "Express": "express\\.?js",
+        "C#": "c#",
+        ".NET": "\\.net\\b|\\bdotnet\\b",
+        "Kotlin": "kotlin",
+        "PHP": "\\bphp\\b",
+        "C++": "c\\+\\+",
+        "MongoDB": "mongo",
+        "AWS": "\\baws\\b|amazon web services",
+        "Azure": "\\bazure\\b",
+        "Jenkins": "jenkins",
+        "Selenium": "selenium",
+        "JMeter": "jmeter",
+        "Databricks": "databricks",
+        "TensorFlow": "tensorflow|keras",
+        "Hugging Face": "hugging ?face",
+        "Vertex AI": "vertex",
+        "scikit-learn/pandas": "scikit|sklearn|pandas|numpy",
+        "Copilot Studio": "copilot studio",
+        "NLP": "\\bnlp\\b|procesamiento de lenguaje natural|natural language processing",
+        "MCP": "\\bmcp\\b|model context protocol",
+        "LangSmith/Ragas": "langsmith|ragas",
+        "CrewAI/AutoGen": "crewai|autogen|semantic kernel",
+        "Microservicios": "microservic"
+      },
+      "missing": {
+        "Go": "\\bgolang\\b|\\bgo (developer|engineer)\\b|\\b(in|en|with|con|and|y) go\\b|\\bgo\\s*[,/]|[,/]\\s*go\\b",
+        "Rust": "\\brust\\b",
+        "Ruby/Rails": "\\bruby\\b|\\brails\\b",
+        "Scala": "\\bscala\\b",
+        "Elixir": "elixir",
+        "Kubernetes": "kubernetes|\\bk8s\\b",
+        "Terraform": "terraform",
+        "Kafka": "kafka",
+        "Spark": "\\bspark\\b|pyspark",
+        "Airflow": "airflow",
+        "Snowflake": "snowflake",
+        "BigQuery": "bigquery",
+        "Redshift": "redshift",
+        "SAP/ABAP": "\\bsap\\b|\\babap\\b",
+        "Salesforce": "salesforce",
+        "iOS/Swift": "\\bswift\\b|\\bios\\b",
+        "Android nativo": "\\bandroid\\b",
+        "React Native": "react native",
+        "Svelte": "svelte",
+        "GraphQL": "graphql",
+        "Redis": "\\bredis\\b",
+        "RabbitMQ": "rabbitmq",
+        "Elasticsearch": "elasticsearch|opensearch",
+        "AWS Lambda/serverless": "aws lambda|serverless|step functions|dynamodb",
+        "SageMaker/Bedrock": "sagemaker|bedrock",
+        "Oracle/PL-SQL": "\\boracle\\b|pl/?sql",
+        "COBOL/AS400": "cobol|\\bas/?400\\b",
+        "n8n": "\\bn8n\\b",
+        "Ansible": "ansible",
+        "Grafana/Prometheus": "grafana|prometheus",
+        "Unity": "\\bunity\\b",
+        "Speech Analytics": "speech analytics|speech[- ]to[- ]text|reconocimiento de voz|anal[ií]tica de voz"
+      }
+    },
+    "about_headings": ["responsabilidades", "funciones", "qu[eé] har[aá]s", "tu rol", "tus retos", "tu misi[oó]n", "misi[oó]n del puesto", "objetivo del puesto", "ser[aá]s responsable", "what you'?ll do", "what you will do", "responsibilities", "about the role", "the role", "in this role", "you will"],
+    "non_tech": {
+      "reason": "rol no técnico",
+      "patterns": ["\\bventas\\b", "\\bvendedor", "\\bsales\\b", "call ?center", "\\basesor", "\\bcontador", "\\bcontable", "\\bauxiliar", "\\bcobranza", "laboratorio", "\\brecepcion", "atenci[oó]n al cliente", "customer service", "\\bteleoperador", "\\bpromotor", "\\bcajer", "\\bpracticante\\b", "\\bpasante\\b", "\\bintern\\b", "\\bsupport\\b", "\\bsoporte\\b", "\\basistente\\b", "almac[eé]n", "\\bconductor", "\\bchofer", "\\boperari[oa]"],
+      "unless": "\\b(ti|it|sistemas|software|desarrollo|desarrollador|developer|programador|datos|data|ia|ai|tecnolog[ií]a|inform[aá]tica|web|full ?stack)\\b"
+    },
+    "location": {
+      "lima_district_patterns": ["san borja", "san isidro", "miraflores", "surco", "surquillo", "la molina", "\\bate\\b", "chorrillos", "barranco", "lince", "jes[uú]s mar[ií]a", "magdalena", "san miguel", "pueblo libre", "la victoria", "bre[nñ]a", "los olivos", "san juan de (lurigancho|miraflores)", "independencia", "\\bcallao\\b", "lima metropolitana"],
+      "other_city_patterns": ["arequipa", "trujillo", "cusco", "cuzco", "piura", "chiclayo", "\\bica\\b", "huancayo", "tacna", "cajamarca", "\\bpuno\\b", "iquitos", "chimbote", "ayacucho", "huaraz", "tumbes", "pucallpa", "moquegua", "talara", "pisco", "hu[aá]nuco", "chachapoyas", "huancavelica", "abancay", "juliaca", "\\bprovincias?\\b"],
+      "_comment_remote": "Otra ciudad del Perú solo se salva si es remoto (híbrido exige ir a esa oficina).",
+      "remote_patterns": ["\\bremot", "\\bremote\\b", "home office", "teletrabajo"],
+      "_comment_foreign": "Ubicación del aviso fuera del Perú y sin Perú/LATAM/global en la lista → excluida. foreign_title_patterns: marcas de aviso extranjero en el título.",
+      "home_patterns": ["per[uú]", "\\blima\\b", "\\blatam\\b", "latin america", "latinoam[eé]rica", "\\bamericas\\b", "south america", "worldwide", "anywhere", "\\bglobal\\b"],
+      "foreign_patterns": ["\\bindia\\b", "australia", "japan", "singapore", "philippines", "new zealand", "united states", "\\busa\\b", "canada", "united kingdom", "\\buk\\b", "england", "london", "germany", "deutschland", "austria", "[öo]sterreich", "\\blinz\\b", "\\bwien\\b", "vienna", "switzerland", "france", "paris", "spain", "espa[nñ]a", "madrid", "barcelona", "portugal", "lisbo", "italy", "netherlands", "amsterdam", "poland", "ireland", "dublin", "europe", "\\bemea\\b", "\\bapac\\b", "colombia", "medell[ií]n", "bogot[aá]", "m[eé]xico", "chile", "santiago", "argentina", "buenos aires", "brazil", "brasil", "s[aã]o paulo", "ecuador", "uruguay", "costa rica"],
+      "foreign_title_patterns": ["\\((m/f/d|m/w/d|w/m/d|f/m/d|h/m/f)\\)", "location:\\s*(?!lima|per[uú]|remot)\\w", "\\b(based in|on-?site in|onsite in)\\s+(?!lima|per[uú])\\w"],
+      "relocation_patterns": ["reubicaci[oó]n", "relocat", "disponibilidad para (mudarse|residir|radicar)", "residir en (provincia|el extranjero)", "trabajo en mina", "campamento minero"],
+      "presencial_patterns": ["\\bpresencial", "on-?site", "100% en (la )?oficina"],
+      "hybrid_remote_patterns": ["h[ií]brid", "hybrid", "\\bremot", "\\bremote\\b", "home office", "teletrabajo"],
+      "modality_points": {
+        "hybrid_remote": 12,
+        "hybrid_remote_reason": "híbrido/remoto (prioridad)",
+        "presencial": -4,
+        "presencial_reason": "100% presencial"
+      },
+      "restricted_patterns": ["\\b(us|u\\.s\\.|usa|uk|eu)[- ]only\\b", "\\bonly (open to |for )?(candidates )?(in |from )?(the )?(us|usa|u\\.s\\.|united states|canada|uk|united kingdom|europe|eu)\\b", "must (be )?(based|located|reside|residing|live|living)[^.\\n]{0,25}\\b(in|within) (the )?(us|usa|u\\.s\\.|united states|canada|uk|united kingdom|europe|eu|india|philippines)\\b", "\\b(us|u\\.s\\.) citizens?(hip)?\\b", "green card", "security clearance", "authori[sz]ed to work in the (us|united states|uk|eu)", "\\b(cet|cest|ist|aest|sgt|gmt\\+[1-9]) (time ?zone|hours|working hours)\\b"]
+    },
+    "language": {
+      "advanced_english_patterns": ["ingl[eé]s (avanzado|fluido|nativo|intermedio[- ]avanzado|c1|c2|bilingüe)", "advanced english", "fluent english", "english (fluency|fluent|advanced|proficiency|c1|c2)", "fluent in english", "bilingual", "biling[uü]e", "english[^.\\n]{0,30}\\b(c1|c2)\\b"],
+      "other_languages": ["portugu[eé]s", "portuguese", "alem[aá]n", "german", "franc[eé]s", "french", "italiano", "italian", "japon[eé]s", "japanese", "chino", "mandar[ií]n", "chinese", "coreano", "korean", "neerland[eé]s", "dutch"],
+      "required_markers": ["fluido", "fluent", "avanzado", "advanced", "nativo", "native", "requerido", "required", "indispensable", "obligatorio", "\\bc1\\b", "\\bc2\\b", "\\bb2\\b", "proficien"]
+    },
+    "blocked_companies": {
+      "_comment": "Plataformas de gigs/paneles de expertos: excluidas aunque el título parezca de ingeniería.",
+      "reason": "plataforma de gigs / panel de expertos",
+      "patterns": ["\\bmicro1\\b", "xperteez", "crossing hurdles", "\\bmercor\\b", "\\bclera\\b", "lateral group"]
+    },
+    "bi_track": {
+      "_comment": "Analista BI / datos: alerta solo si el aviso también pide Python, automatización o IA, y nunca pasa de MEDIA (decisión del usuario 2026-11-19).",
+      "reason_with": "BI con Python/automatización/IA (máx. medio)",
+      "reason_without": "BI sin Python/automatización/IA",
+      "title_patterns": ["\\bbi\\b", "business intelligence", "inteligencia de negocios", "analista de datos", "data analyst", "analista de data", "data scientist", "inteligencia comercial"],
+      "requires": ["\\bpython\\b", "automatizaci[oó]n", "\\bautomation\\b", "\\brpa\\b", "\\b(ia|ai)\\b", "inteligencia artificial", "machine learning", "\\bml\\b", "\\bllms?\\b"]
+    }
+  }
+}

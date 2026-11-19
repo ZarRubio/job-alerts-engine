@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+node_modules/
+# Personal state and the private labelled corpus never go to git.
+job_scraper/alerts_state.json
+job_scraper/seen_jobs.json
+job_scraper/eval/
+job_search_tracker.csv
+.env*

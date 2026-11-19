@@ -1,6 +1,9 @@
 # Job Alerts Engine
 
 [![CI](https://github.com/ZarRubio/job-alerts-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/ZarRubio/job-alerts-engine/actions/workflows/ci.yml)
+![coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25%20(gate)-brightgreen)
+![python](https://img.shields.io/badge/python-3.10%2B-blue)
+![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
 A personal job-alert pipeline that searches job boards twice a day, scores every new posting against a candidate profile and emails only the ones worth applying to, with a one-line summary of what each job is about and which parts of its stack the candidate already has.
 
@@ -68,14 +71,18 @@ The alert text is in Spanish because the candidate searches in Peru; the code, c
 
 ## Run it
 
-Requirements: Python 3.10+ (standard library only) and [Bun](https://bun.sh) for the portal CLIs.
+Requirements: Python 3.10+ (no runtime dependencies) and [Bun](https://bun.sh) for the portal CLIs.
 
 ```bash
+git clone https://github.com/ZarRubio/job-alerts-engine && cd job-alerts-engine
+pip install -e ".[dev]"                                   # installs the job-alerts and job-alerts-eval commands
 for d in portals/*/cli; do (cd "$d" && bun install); done
 
-python tools/job_alerts.py --dry-run --max-details 5     # search and score, print, send nothing
-python tools/eval_alerts.py --corpus examples/sample_corpus.jsonl --errors
+job-alerts --dry-run --max-details 5                      # search and score, print, send nothing
+job-alerts-eval --corpus examples/sample_corpus.jsonl --errors
 ```
+
+Config, state and portals are read from the repository checkout. To keep your own config and state elsewhere, point `JOB_ALERTS_HOME` at a folder with the same `job_scraper/` and `portals/` layout.
 
 To get emails, set `ALERT_SMTP_USER`, `ALERT_SMTP_APP_PASSWORD` (a Gmail app password) and `ALERT_EMAIL_TO`, then run without `--dry-run`. In GitHub Actions they are repository secrets; the workflow keeps the "already alerted" state on an orphan `alerts-state` branch so nothing personal lands on `main`.
 
@@ -89,10 +96,19 @@ python tools/eval_alerts.py --errors      # before and after editing alert_confi
 
 `tests/test_eval_alerts.py` enforces minimum precision, recall and F1 on the labelled corpus when it is present, so a tuning change that degrades the model fails CI.
 
+## Design decisions
+
+- **Deterministic first, not an LLM.** The filter runs twice a day over a few hundred postings. Rules cost nothing, run in seconds, never hallucinate a requirement and explain every point they give. An LLM re-ranking of the top results is a possible next layer, and it would have to beat the same labelled corpus to earn its cost.
+- **Measured, not eyeballed.** Every tuning change is judged by precision, recall and F1 on hand-labelled real postings, and CI enforces minimum values so a regression cannot slip in unnoticed.
+- **Tuning is configuration.** Every pattern, weight and threshold lives in `alert_config.json`; the code only interprets it. Adapting the engine to another profile means editing JSON, not Python.
+- **Explainability over a single number.** The email shows why a posting scored what it did and which parts of its stack are covered, so the reader can disagree with the model in seconds.
+- **Secrets and personal state stay out of git.** Credentials come from environment variables and are redacted from every log and message; the alert history lives on a separate orphan branch.
+
 ## Quality
 
-- 49 Python tests (scoring cases, dedupe, notifications with mocked SMTP/HTTP and secret redaction, CLI runs with mocked portals) plus Bun tests for each portal CLI.
-- `ruff` (lint + format) and `mypy` in CI; actions pinned to commit SHAs; checkout without persisted credentials.
+- 51 Python tests (scoring cases, dedupe, notifications with mocked SMTP/HTTP and secret redaction, CLI runs with mocked portals, the evaluator) plus Bun tests for each portal CLI. Coverage of the engine is ~87%, with an 85% gate in CI.
+- `ruff` (lint + format) and `mypy` in CI; actions pinned to commit SHAs; checkout without persisted credentials; Dependabot for Actions, npm and pip.
+- Versioned releases with a [changelog](CHANGELOG.md).
 
 ## How it was built
 

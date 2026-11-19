@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-alerts-engine"
+version = "0.1.0"
+description = "Searches job boards, scores postings with an explainable, evaluated model and emails the best fits."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "ZarRubio" }]
+keywords = ["job-search", "alerts", "scoring", "evaluation", "github-actions"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business",
+]
+dependencies = []  # standard library only; the portal CLIs need Bun
+
+[project.optional-dependencies]
+dev = ["ruff==0.15.20", "mypy==2.4.1", "coverage==7.13.0"]
+
+[project.scripts]
+job-alerts = "job_alerts:main"
+job-alerts-eval = "eval_alerts:main"
+
+[project.urls]
+Repository = "https://github.com/ZarRubio/job-alerts-engine"
+Changelog = "https://github.com/ZarRubio/job-alerts-engine/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+package-dir = { "" = "tools" }
+py-modules = ["job_alerts", "eval_alerts", "job_key", "rank_state", "scrape_state"]
+packages = ["alerting"]
+
+[tool.coverage.run]
+source = ["tools"]
+branch = true
+# Vendored dedupe helpers from ai-job-search: covered by their upstream suite.
+omit = ["tools/job_key.py", "tools/rank_state.py", "tools/scrape_state.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

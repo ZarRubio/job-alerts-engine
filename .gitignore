@@ -9,3 +9,6 @@ job_scraper/seen_jobs.json
 job_scraper/eval/
 job_search_tracker.csv
 .env*
+.coverage
+*.egg-info/
+build/

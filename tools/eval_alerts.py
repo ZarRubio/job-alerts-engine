@@ -25,8 +25,9 @@ TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS))
 
 import job_alerts  # noqa: E402
+from alerting.common import ROOT  # noqa: E402
 
-CORPUS = TOOLS.parent / "job_scraper" / "eval" / "corpus.jsonl"
+CORPUS = ROOT / "job_scraper" / "eval" / "corpus.jsonl"
 
 
 def load_corpus(path: Path) -> list[dict]:

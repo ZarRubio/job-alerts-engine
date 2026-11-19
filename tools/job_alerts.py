@@ -53,13 +53,12 @@ from pathlib import Path
 from typing import Any
 
 TOOLS = Path(__file__).resolve().parent
-ROOT = TOOLS.parent
 if str(TOOLS) not in sys.path:
     sys.path.insert(0, str(TOOLS))
 
 from alerting import notify as notify_mod  # noqa: E402,F401
 from alerting import search  # noqa: E402,F401
-from alerting.common import (  # noqa: E402,F401  re-exported for callers and tests
+from alerting.common import (  # noqa: E402,F401  re-exported for callers and tests  # noqa: E402,F401
     ALERTS_STATE,
     CALLMEBOT_URL,
     CLI_TIMEOUT,
@@ -69,7 +68,10 @@ from alerting.common import (  # noqa: E402,F401  re-exported for callers and te
     FIT_LABEL,
     FIT_RANK,
     OR_MAX,
+    ROOT,
+    SEEN_STATE,
     SKILLS,
+    TRACKER,
     WHATSAPP_MAX_ENCODED,
     log,
 )
@@ -118,8 +120,7 @@ from alerting.state import (  # noqa: E402,F401  re-exported for callers and tes
     write_corpus,
 )
 from job_key import make_key  # noqa: E402
-from rank_state import STATE as SEEN_STATE  # noqa: E402
-from rank_state import TRACKER, norm, save_state  # noqa: E402,F401
+from rank_state import norm, save_state  # noqa: E402,F401
 
 
 def lima_now(config: dict) -> datetime:

@@ -59,5 +59,29 @@ class LoaderTests(unittest.TestCase):
             self.assertIsNone(rows[1]["label"])
 
 
+class SampleCorpusTests(unittest.TestCase):
+    """The shipped synthetic sample exercises the evaluator end to end."""
+
+    SAMPLE = Path(__file__).resolve().parent.parent / "examples" / "sample_corpus.jsonl"
+
+    def test_sample_is_scored_and_reported(self):
+        result = eval_alerts.evaluate(eval_alerts.load_corpus(self.SAMPLE), job_alerts.load_config(job_alerts.CONFIG))
+        self.assertEqual(result["postings"], 12)
+        self.assertEqual(result["positives"], 6)
+        self.assertGreaterEqual(result["f1"], 0.8)
+
+    def test_cli_prints_metrics_errors_and_json(self):
+        import contextlib
+        import io
+
+        for argv, needle in (([], "Precision"), (["--errors"], "False Positives"), (["--json"], '"f1"')):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(eval_alerts.main(["--corpus", str(self.SAMPLE), *argv]), 0)
+            self.assertIn(needle, out.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(eval_alerts.main(["--corpus", str(self.SAMPLE), "--confident"]), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
